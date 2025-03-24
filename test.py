@@ -14,6 +14,8 @@ from playwright.sync_api import sync_playwright, Playwright
 import undetected_chromedriver
 from fake_useragent import UserAgent
 from custom_logger import get_logger
+from dataclasses import asdict
+
 import re
 
 
@@ -23,6 +25,7 @@ logger = get_logger("web_page_analyzer")
 class WebPageAnalyzer:
     def __init__(self, target_url: str):
         self.target_url = target_url
+        self.request_count: int = 0
 
         chrome_options = Options()
         chrome_options.add_argument("--headless")
@@ -77,8 +80,9 @@ class WebPageAnalyzer:
         return driver
 
     def get_robots_txt_with_requests(self, url: str) -> RobotTxtResult:
-        robot_txt_result: RobotTxtResult = RobotTxtResult(content='', http_status=0, has_err=False)
+        robot_txt_result: RobotTxtResult = RobotTxtResult(processor='Requests')
         response = self.session.get(url, headers=self.headers)
+        self.request_count += 1
         try:
             if not response.status_code == 200:
                 if response.headers.get('Content-Encoding') == 'gzip':
@@ -103,9 +107,10 @@ class WebPageAnalyzer:
             return robot_txt_result
 
     def get_robots_txt_with_selenium(self, url: str) -> RobotTxtResult:
-        robot_txt_result: RobotTxtResult = RobotTxtResult(content='', http_status=0, has_err=False)
+        robot_txt_result: RobotTxtResult = RobotTxtResult(processor='Selenium')
         try:
             self.driver.get(url)
+            self.request_count += 1
             content = self.driver.page_source
             if len(content) > 1:
                 soup: BeautifulSoup = BeautifulSoup(content, 'html.parser')
@@ -117,15 +122,15 @@ class WebPageAnalyzer:
             # raise exception
         return robot_txt_result
 
-    @staticmethod
-    def get_robots_txt_with_playwright(playwright: Playwright, url: str) -> RobotTxtResult:
-        robot_txt_result: RobotTxtResult = RobotTxtResult(content='', http_status=0, has_err=False)
+    def get_robots_txt_with_playwright(self, playwright: Playwright, url: str) -> RobotTxtResult:
+        robot_txt_result: RobotTxtResult = RobotTxtResult(processor='Playwright')
 
         chromium = playwright.chromium  # "firefox" || "webkit".
         browser = chromium.launch()
         try:
             page = browser.new_page()
             page.goto(url)
+            self.request_count += 1
             content = page.content()
             if len(content) > 1:
                 soup: BeautifulSoup = BeautifulSoup(content, 'html.parser')
@@ -139,9 +144,10 @@ class WebPageAnalyzer:
             return robot_txt_result
 
     def get_robots_txt_with_undetected_chromedriver(self, url: str) -> RobotTxtResult:
-        robot_txt_result: RobotTxtResult = RobotTxtResult(content='', http_status=0, has_err=False)
+        robot_txt_result: RobotTxtResult = RobotTxtResult(processor='Undetected Chromedriver')
         try:
             self.undetected_chromedriver.get(url)
+            self.request_count += 1
             content = self.undetected_chromedriver.page_source
             if len(content) > 1:
                 soup: BeautifulSoup = BeautifulSoup(content, 'html.parser')
@@ -156,48 +162,145 @@ class WebPageAnalyzer:
         finally:
             return robot_txt_result
 
-    def check_robots_txt(self) -> None:
+    def check_robots_txt(self) -> list[dict]:
         robots_url = self.target_url + "/robots.txt"
         self.result["robots"]["status"]: bool = False
         try:
-            logger.info("[✔] robots.txt bulundu:")
-
             requests_robots_txt = self.get_robots_txt_with_requests(robots_url)
-            print(f'dönen : {requests_robots_txt}')
             selenium_robots_txt = self.get_robots_txt_with_selenium(robots_url)
             with sync_playwright() as playwright:
                 playwright_robots_txt = self.get_robots_txt_with_playwright(playwright, robots_url)
             undetected_chromedriver_robots_txt = self.get_robots_txt_with_undetected_chromedriver(robots_url)
 
-            a = [
-                {
-                    "module": "requests",
-                    "is_load": "",
-                }
+            return [
+                asdict(requests_robots_txt),
+                asdict(selenium_robots_txt),
+                asdict(playwright_robots_txt),
+                asdict(undetected_chromedriver_robots_txt),
             ]
-
         except Exception as e:
             logger.exception(f"[!] robots.txt kontrolü başarısız: {e}")
-            print(f"[!] robots.txt kontrolü başarısız: {e}")
 
-    def check_http_headers(self):
-        """API gateway ve güvenlik servislerini HTTP başlıklarından tespit eder"""
-        print("[*] HTTP başlıkları kontrol ediliyor...")
+    def check_http_headers_with_requests(self) -> list[str]:
+        gateway_list = []
         try:
             response = self.session.get(self.target_url, headers=self.headers)
+            self.request_count += 1
             headers = response.headers
-
             for gateway, keys in self.api_gateways.items():
                 if any(key.lower() in headers for key in keys):
-                    print(f"[✔] {gateway} API Gateway tespit edildi!")
-
+                    gateway_list.append(gateway)
+                    logger.info(f"[✔] {gateway} API Gateway tespit edildi!")
         except Exception as e:
-            print(f"[!] HTTP başlıklarını kontrol ederken hata oluştu: {e}")
+            logger.exception(f"[!] HTTP başlıklarını kontrol ederken hata oluştu: {e}")
+        finally:
+            return gateway_list
+
+    def discover_api_endpoints(self):
+        """Sayfadaki API endpointlerini keşfeder"""
+        logger.info("[*] Sayfa taranıyor, API endpointleri aranıyor...")
+        response = self.session.get(self.target_url, headers=self.headers)
+        self.request_count += 1
+        soup = BeautifulSoup(response.text, "html.parser")
+        scripts = soup.find_all("script")
+
+        api_patterns = [
+            r"https?://[a-zA-Z0-9.-]+/api/[a-zA-Z0-9/_-]*",
+            r"https?://[a-zA-Z0-9.-]+/v[0-9]+/[a-zA-Z0-9/_-]*",
+            r"https?://[a-zA-Z0-9.-]+/graphql",
+            r"https?://[a-zA-Z0-9.-]+/wp-json/[a-zA-Z0-9/_-]*",
+            r"https?://[a-zA-Z0-9.-]+/rest/[a-zA-Z0-9/_-]*"
+        ]
+
+        found_endpoints = set()
+        for script in scripts:
+            script_text = script.string
+            if script_text:
+                for pattern in api_patterns:
+                    matches = re.findall(pattern, script_text)
+                    found_endpoints.update(matches)
+
+        if found_endpoints:
+            logger.info("[✔] Bulunan API Endpointleri:")
+            for endpoint in found_endpoints:
+                logger.info(f"   -> {endpoint}")
+        else:
+            logger.info("[✖] Sayfada açıkça görünen API endpointi bulunamadı.")
+
+        return found_endpoints
+
+    def check_page_api_urls_with_playwright(self):
+        with sync_playwright() as playwright:
+            chromium = playwright.chromium  # "firefox" || "webkit".
+            browser = chromium.launch()
+            try:
+                page = browser.new_page()
+                page.goto(self.target_url)
+                self.request_count += 1
+                for _ in range(10, 0, -1):
+                    time.sleep(1)
+                    print(f'{_}.second left')
+                logs = page.evaluate("() => window.performance?.getEntries?.() || []")
+
+                print(logs)
+
+                api_requests: set = set()
+                other_requests: set = set()
+                for log in logs:
+                    if "name" in log and any(
+                            api_key in log["name"] for api_key in ["/api/", "/v1/", "/graphql", "/wp-json/", "/rest/"]):
+                        api_requests.add(log["name"])
+                    else:
+                        other_requests.add(log["name"])
+
+                if api_requests:
+                    print("[✔] Bulunan XHR / Fetch API İstekleri:")
+                    for req in api_requests:
+                        print(f"   -> {req}")
+                if other_requests:
+                    print("[✔] Bulunan Diğer İstekler:")
+                    for req in other_requests:
+                        print(f"   -> {req}")
+                content = page.content()
+            except Exception as e:
+                logger.exception(f"[!] playwright api kontrolü başarısız: {e}")
+    # check_page_api_urls_with_undetected_chromedriver
+
+    def check_page_api_urls_with_selenium(self, bar=None):
+        self.driver.get(self.target_url)
+        self.request_count += 1
+        for _ in range(10, 0, -1):
+            time.sleep(1)
+            self.driver.execute_script("window.scrollBy(0, 1);")
+            print(f'{_}.second left')
+
+        print(self.driver.title)
+        logs = self.driver.execute_script("return window.performance.getEntries();")
+
+        api_requests: set = set()
+        other_requests: set = set()
+        print(logs)
+        for log in logs:
+            if "name" in log and any(api_key in log["name"] for api_key in ["/api/", "/v1/", "/graphql", "/wp-json/", "/rest/"]):
+                api_requests.add(log["name"])
+            else:
+                other_requests.add(log["name"])
+
+        if api_requests:
+            print("[✔] Bulunan XHR / Fetch API İstekleri:")
+            for req in api_requests:
+                print(f"   -> {req}")
+        if other_requests:
+            print("[✔] Bulunan Diğer İstekler:")
+            for req in other_requests:
+                print(f"   -> {req}")
+        else:
+            print("[✖] Sayfada XHR veya Fetch API istekleri bulunamadı.")
 
 
 web_page_analyzer: WebPageAnalyzer = WebPageAnalyzer("https://farukseker.com.tr/")
 # print(web_page_analyzer.get_robots_txt_with_requests("https://farukseker.com.tr/robots.txt"))
-web_page_analyzer.check_robots_txt()
+print(web_page_analyzer.check_page_api_urls_with_playwright())
 # web_page_analyzer.check_http_headers()
-
+# self.request_count += 1
 print(web_page_analyzer.result)

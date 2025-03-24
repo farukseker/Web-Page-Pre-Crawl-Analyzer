@@ -3,7 +3,8 @@ from dataclasses import dataclass
 
 @dataclass
 class RobotTxtResult:
-    content: str
-    http_status: int
-    has_err: bool
+    processor: str
+    content: str = ''
+    http_status: int = 0
+    has_err: bool = False
     render: None | str = None
