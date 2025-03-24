@@ -8,3 +8,4 @@ ollama
 theme-darcula
 streamlit
 setuptools
+psutil

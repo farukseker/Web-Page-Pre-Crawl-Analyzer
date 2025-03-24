@@ -26,6 +26,7 @@ class WebPageAnalyzer:
     def __init__(self, target_url: str):
         self.target_url = target_url
         self.request_count: int = 0
+        self.wait_for_page_load_time: int = 10
 
         chrome_options = Options()
         chrome_options.add_argument("--headless")
@@ -229,7 +230,12 @@ class WebPageAnalyzer:
 
         return found_endpoints
 
-    def check_page_api_urls_with_playwright(self):
+    def wait_for_page_load(self):
+        for _ in range(self.wait_for_page_load_time, 0, -1):
+            time.sleep(1)
+            print(f'{_}.second left')
+
+    def check_page_api_urls_with_playwright(self) -> (list, list):
         with sync_playwright() as playwright:
             chromium = playwright.chromium  # "firefox" || "webkit".
             browser = chromium.launch()
@@ -237,9 +243,7 @@ class WebPageAnalyzer:
                 page = browser.new_page()
                 page.goto(self.target_url)
                 self.request_count += 1
-                for _ in range(10, 0, -1):
-                    time.sleep(1)
-                    print(f'{_}.second left')
+                self.wait_for_page_load()
                 logs = page.evaluate("() => window.performance?.getEntries?.() || []")
 
                 print(logs)
@@ -298,9 +302,10 @@ class WebPageAnalyzer:
             print("[✖] Sayfada XHR veya Fetch API istekleri bulunamadı.")
 
 
-web_page_analyzer: WebPageAnalyzer = WebPageAnalyzer("https://farukseker.com.tr/")
-# print(web_page_analyzer.get_robots_txt_with_requests("https://farukseker.com.tr/robots.txt"))
-print(web_page_analyzer.check_page_api_urls_with_playwright())
-# web_page_analyzer.check_http_headers()
-# self.request_count += 1
-print(web_page_analyzer.result)
+if __name__ == '__main__':
+    web_page_analyzer: WebPageAnalyzer = WebPageAnalyzer("https://farukseker.com.tr/")
+    # print(web_page_analyzer.get_robots_txt_with_requests("https://farukseker.com.tr/robots.txt"))
+    print(web_page_analyzer.check_page_api_urls_with_playwright())
+    # web_page_analyzer.check_http_headers()
+    # self.request_count += 1
+    print(web_page_analyzer.result)
