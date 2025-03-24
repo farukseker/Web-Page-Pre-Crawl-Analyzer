@@ -9,6 +9,7 @@ from utilities.robots import (
     get_robots_txt_with_playwright,
     get_robots_txt_with_undetected_chromedriver
 )
+from utilities import find_api_gateways
 from urllib.parse import urlparse
 import asyncio
 
@@ -17,15 +18,6 @@ def main():
     st.set_page_config(page_title="Web Page Analyzer", layout="wide")
     st.title("Web Page Analyzer")
 
-    with st.spinner("Drivers loading"):
-        try:
-            uc_driver: undetected_chromedriver = undetected_chromedriver.Chrome(options=config.make_chrome_options(),
-                                                                                keep_alive=True)
-            uc_driver.execute_script(config.ANTI_BOT_CLOAKER_SCRIPT)
-            chrome_driver: webdriver.Chrome = webdriver.Chrome(options=config.make_chrome_options())
-        except Exception as e:
-            st.error(f"Driverlerin yüklenmesi sırasında hata: {e}")
-
     url = st.text_input("Analiz etmek istediğiniz URL'yi girin:", value='https://farukseker.com.tr/')
     url_obj = urlparse(url)
 
@@ -33,39 +25,63 @@ def main():
 
         with st.spinner("Analiz ediliyor..."):
             try:
-                st.subheader("Robots.txt Sonucu")
+                # st.subheader("Robots.txt Sonucu")
 
-                robots_url = f'{url_obj.scheme}://{url_obj.netloc}/robots.txt'
-                st.text(f'> Target: {robots_url}')
+                # robots_url = f'{url_obj.scheme}://{url_obj.netloc}/robots.txt'
+                # st.markdown(f'> Robots.txt url >> [{robots_url}]({robots_url})')
 
-                requests_col, selenium_col, playwright_col, undetected_chromedriver_col = st.columns(4)
+                # requests_col, selenium_col, playwright_col, undetected_chromedriver_col = st.columns(4)
+                #
+                # requests_result = get_robots_txt_with_requests(robots_url)
+                # requests_col.subheader('Requests Result')
+                # requests_col.code(f"HTTP STATUS: {requests_result.http_status}")
+                # requests_col.code(f"ERROR: {requests_result.has_err}")
+                # requests_col.code(requests_result.content)
+                #
+                # selenium_result = get_robots_txt_with_selenium(robots_url)
+                # selenium_col.subheader('Selenium Result')
+                # selenium_col.code(f"HTTP STATUS: {selenium_result.http_status}")
+                # selenium_col.code(f"ERROR: {selenium_result.has_err}")
+                # selenium_col.code(selenium_result.content)
+                #
+                # loop = asyncio.ProactorEventLoop()
+                # asyncio.set_event_loop(loop)
+                # playwright_result = loop.run_until_complete(get_robots_txt_with_playwright(robots_url))
+                #
+                # playwright_col.subheader('Playwright Result')
+                # playwright_col.code(f"HTTP STATUS: {playwright_result.http_status}")
+                # playwright_col.code(f"ERROR: {playwright_result.has_err}")
+                # playwright_col.code(playwright_result.content)
+                #
+                # undetected_chromedriver_result = get_robots_txt_with_undetected_chromedriver(robots_url)
+                # undetected_chromedriver_col.subheader('Undetected Chromedriver Result')
+                # undetected_chromedriver_col.code(f"HTTP STATUS: {undetected_chromedriver_result.http_status}")
+                # undetected_chromedriver_col.code(f"ERROR: {undetected_chromedriver_result.has_err}")
+                # undetected_chromedriver_col.code(undetected_chromedriver_result.content)
+                # ROBOTS END
 
-                requests_result = get_robots_txt_with_requests(robots_url)
-                requests_col.subheader('Requests Result')
-                requests_col.code(f"HTTP STATUS: {requests_result.http_status}")
-                requests_col.code(f"ERROR: {requests_result.has_err}")
-                requests_col.code(requests_result.content)
-
-                selenium_result = get_robots_txt_with_selenium(robots_url, chrome_driver)
-                selenium_col.subheader('Selenium Result')
-                selenium_col.code(f"HTTP STATUS: {selenium_result.http_status}")
-                selenium_col.code(f"ERROR: {selenium_result.has_err}")
-                selenium_col.code(selenium_result.content)
-
-                loop = asyncio.ProactorEventLoop()
-                asyncio.set_event_loop(loop)
-                playwright_result = loop.run_until_complete(get_robots_txt_with_playwright(robots_url))
-
-                playwright_col.subheader('Playwright Result')
-                playwright_col.code(f"HTTP STATUS: {playwright_result.http_status}")
-                playwright_col.code(f"ERROR: {playwright_result.has_err}")
-                playwright_col.code(playwright_result.content)
-
-                undetected_chromedriver_result = get_robots_txt_with_undetected_chromedriver(robots_url, uc_driver)
-                undetected_chromedriver_col.subheader('Undetected Chromedriver Result')
-                undetected_chromedriver_col.code(f"HTTP STATUS: {undetected_chromedriver_result.http_status}")
-                undetected_chromedriver_col.code(f"ERROR: {undetected_chromedriver_result.has_err}")
-                undetected_chromedriver_col.code(undetected_chromedriver_result.content)
+                # st.subheader(f'API Gateways:')
+                # with st.spinner('Searching API Gateways'):
+                #     if api_gateways_results := find_api_gateways(url):
+                #         tags_html = ''.join(
+                #             [
+                #                 '<span style="background-color: rgb(9 12 18); padding: 5px 10px; border-radius: 10px;">'
+                #                 f'{api_gateway}'
+                #                 '</span>'
+                #                 for api_gateway in api_gateways_results
+                #             ]
+                #         )
+                #         st.markdown(
+                #             f"""
+                #             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                #                 {tags_html}
+                #             </div>
+                #             """,
+                #             unsafe_allow_html=True
+                #         )
+                #     else:
+                #         st.error('API Gateways Not Found')
+                ...
 
             except Exception as e:
                 st.error(f"Analiz sırasında bir hata oluştu: {e}")
