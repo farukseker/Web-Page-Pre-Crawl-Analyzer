@@ -1,0 +1,27 @@
+services:
+  streamlit:
+    container_name: mycve-streamlit
+    ports:
+      - "1000:8501"
+    volumes:
+      - ./:/app
+    working_dir: /app
+    command: ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - D:\ollama:/root/.ollama
+    ports:
+      - "3000:11434"
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: "nvidia"
+              count: all
+              capabilities: [gpu]
+
+#  ollama_data:
+#    driver: local

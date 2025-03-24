@@ -1,0 +1,10 @@
+playwright
+fake-useragent
+undetected-chromedriver
+aiohttp
+streamlit
+beautifulsoup4
+ollama
+theme-darcula
+streamlit
+setuptools
