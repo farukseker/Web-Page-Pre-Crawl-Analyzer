@@ -1,6 +1,9 @@
 services:
   streamlit:
     container_name: mycve-streamlit
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "1000:8501"
     volumes:
@@ -13,7 +16,7 @@ services:
     volumes:
       - D:\ollama:/root/.ollama
     ports:
-      - "3000:11434"
+      - "11434:11434"
     restart: unless-stopped
     deploy:
       resources:

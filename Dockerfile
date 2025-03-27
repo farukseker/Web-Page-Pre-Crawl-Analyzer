@@ -19,7 +19,7 @@ RUN pip install -r requirements.txt
 
 RUN playwright install && playwright install-deps
 
-EXPOSE 80
-EXPOSE 1000
+EXPOSE 8501
+EXPOSE 11434
 
-#CMD ["jupyter", "lab", "--no-browser", "--ip=0.0.0.0", "--port=80", "--notebook-dir=/app/workdir", "--NotebookApp.token=''", "--NotebookApp.password=''", "--allow-root"]
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
