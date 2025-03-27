@@ -9,3 +9,6 @@ theme-darcula
 streamlit
 setuptools
 psutil
+langchain
+langchain_ollama
+aiofiles

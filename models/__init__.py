@@ -1,1 +1,2 @@
 from .robots_txt_result_model import RobotTxtResult
+from .content_load_result_model import ContentResultModel

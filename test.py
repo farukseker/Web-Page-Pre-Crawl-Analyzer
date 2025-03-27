@@ -3,6 +3,8 @@ import gzip
 import requests
 import time
 from bs4 import BeautifulSoup
+
+import config
 from models import *
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -251,9 +253,10 @@ class WebPageAnalyzer:
                 api_requests: set = set()
                 other_requests: set = set()
                 for log in logs:
-                    if "name" in log and any(
-                            api_key in log["name"] for api_key in ["/api/", "/v1/", "/graphql", "/wp-json/", "/rest/"]):
-                        api_requests.add(log["name"])
+                    if "name" in log:
+                        for pattern in config.API_PATTERNS:
+                            matches = re.findall(pattern, log["name"])
+                            api_requests.update(matches)
                     else:
                         other_requests.add(log["name"])
 

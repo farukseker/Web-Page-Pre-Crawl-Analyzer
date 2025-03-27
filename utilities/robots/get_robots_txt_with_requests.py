@@ -31,11 +31,9 @@ def get_robots_txt_with_requests(url: str) -> RobotTxtResult:
     except requests.RequestException as exception:
         logger.exception("Request failed: %s", exception, exc_info=True)
         robot_txt_result.http_status = getattr(exception.response, 'status_code', 0)
-        robot_txt_result.http_status = 0
     except Exception as exception:
         logger.critical(exception, exc_info=True)
-        robot_txt_result.http_status = 0
-        robot_txt_result.has_err = 0
+        robot_txt_result.has_err = True
     finally:
         session.close()
     return robot_txt_result
