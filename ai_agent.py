@@ -7,8 +7,9 @@ from langchain_ollama.llms import OllamaLLM
 from langchain_ollama.chat_models import Client
 from langchain.prompts import PromptTemplate
 from langchain.output_parsers import PydanticOutputParser
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_community.chat_message_histories import ChatMessageHistory
 from pydantic import BaseModel
-import streamlit
 import config
 
 
@@ -20,13 +21,19 @@ class ContentAnalysis(BaseModel):
 
 
 class LocalLLM:
+    HISTORY_FILE = Path("chat_history.json")
+
     def __init__(self):
         self.parser: PydanticOutputParser = PydanticOutputParser(pydantic_object=ContentAnalysis)
         self.__selected_template: Path | str | None = config.BASE_DIR / 'ai_prompt_templates/content_analysis.prompt'
         self.__selected_model: str | None = None
         # self.ollm = self.do_ollama_llm()
-        self.__chat_session_deque = deque()
+        self.__chat_session_deque = self.load_chat_history()
         self.chat_bot: ChatOllama | None = None
+        self.conversation = None
+
+    def start_conversation(self):
+        self.conversation = RunnableWithMessageHistory(self.chat_bot, lambda session_id: self.__chat_session_deque)
 
     def load_llm_chat(self):
         self.chat_bot = ChatOllama(model=self.__selected_model)
@@ -61,6 +68,7 @@ class LocalLLM:
         if _llm in self.list_llm():
             self.__selected_model = _llm
             self.load_llm_chat()
+            self.start_conversation()
         else:
             # logger.error("The selected llm model is does not in LocalLLM's list")
             raise ValueError("The selected llm model is does not in LocalLLM's list")
@@ -83,38 +91,68 @@ class LocalLLM:
             return None
             # raise e
 
+    def load_chat_history(self):
+        """Önceki konuşmaları JSON'dan yükler"""
+        if self.HISTORY_FILE.exists():
+            with open(self.HISTORY_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                history = ChatMessageHistory()
+                for msg in data:
+                    if msg["role"] == "human":
+                        history.add_user_message(msg["content"])
+                    else:
+                        history.add_ai_message(msg["content"])
+                return history
+        return ChatMessageHistory()
+
+    def save_chat_history(self):
+        """Mevcut konuşmaları JSON dosyasına kaydeder"""
+        messages = []
+        for msg in self.__chat_session_deque.messages:
+            messages.append({"role": "human" if isinstance(msg, HumanMessage) else "ai", "content": msg.content})
+
+        with open(self.HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(messages, f, indent=2, ensure_ascii=False)
+
     def save_llm_message(self, message: str) -> None:
-        self.__chat_session_deque.append(
-            AIMessage(content=message)
-        )
+        self.__chat_session_deque.add_ai_message(message)
+        self.save_chat_history()
 
     def save_user_message(self, message: str) -> None:
-        self.__chat_session_deque.append(
-            HumanMessage(
-                content=message
-            )
-        )
+        self.__chat_session_deque.add_user_message(message)
+        self.save_chat_history()
 
     @property
-    def chat_history(self) -> deque:
+    def chat_history(self) -> ChatMessageHistory:
         return self.__chat_session_deque
 
     def chat_with_llm(self, chat_message: str, st: None = None) -> str:
+        chat_conf: dict = {
+            "configurable": {
+                "session_id": "scraper_user_alpha"
+                }
+            }
+
+        # if not self.conversation:
+        #     raise NotImplementedError('first start conversation')
+
         self.save_user_message(chat_message)
-        messages = [
-            {
-                "role": "user" if isinstance(msg, HumanMessage) else "assistant", "content": msg.content
-            } for msg in self.__chat_session_deque]
 
         if st:
             response_placeholder = st.empty()
             model_reply = ""
 
-            for chunk in self.chat_bot.stream(messages):
+            for chunk in self.conversation.stream(
+                    chat_message,
+                    config=chat_conf
+            ):
                 model_reply += chunk.content
                 response_placeholder.write(model_reply)
         else:
-            response = self.chat_bot.invoke(messages)
+            response = self.conversation.invoke(
+                chat_message,
+                config=chat_conf
+            )
             model_reply = response.content
         self.save_llm_message(model_reply)
         return model_reply

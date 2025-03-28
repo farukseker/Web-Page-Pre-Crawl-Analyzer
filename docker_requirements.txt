@@ -2,6 +2,7 @@ playwright
 fake-useragent
 undetected-chromedriver
 aiohttp
+aiofiles
 streamlit
 beautifulsoup4
 ollama
@@ -11,4 +12,4 @@ setuptools
 psutil
 langchain
 langchain_ollama
-aiofiles
+langchain-community
