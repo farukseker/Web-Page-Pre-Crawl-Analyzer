@@ -4,19 +4,21 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    environment:
+      OLLAMA_BASE_URL: 'http://ollama:11434'
     ports:
-      - "1000:8501"
+      - "80:8501"
     volumes:
       - ./:/app
     working_dir: /app
     command: ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+    networks:
+      - app_network
 
   ollama:
     image: ollama/ollama:latest
     volumes:
       - D:\ollama:/root/.ollama
-    ports:
-      - "11434:11434"
     restart: unless-stopped
     deploy:
       resources:
@@ -25,6 +27,12 @@ services:
             - driver: "nvidia"
               count: all
               capabilities: [gpu]
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
 
 #  ollama_data:
 #    driver: local

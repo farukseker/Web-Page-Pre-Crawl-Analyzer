@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from collections import deque
 from langchain_ollama import ChatOllama
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_ollama.llms import OllamaLLM
@@ -21,7 +20,6 @@ class ContentAnalysis(BaseModel):
 
 
 class LocalLLM:
-    HISTORY_FILE = Path("chat_history.json")
 
     def __init__(self):
         self.parser: PydanticOutputParser = PydanticOutputParser(pydantic_object=ContentAnalysis)
@@ -36,7 +34,7 @@ class LocalLLM:
         self.conversation = RunnableWithMessageHistory(self.chat_bot, lambda session_id: self.__chat_session_deque)
 
     def load_llm_chat(self):
-        self.chat_bot = ChatOllama(model=self.__selected_model)
+        self.chat_bot = ChatOllama(model=self.__selected_model, base_url=config.OLLAMA_BASE_URL)
 
     @property
     def _prompt_template_text(self) -> str:
@@ -49,7 +47,10 @@ class LocalLLM:
 
     @property
     def client(self) -> Client:
-        return Client()
+        try:
+            return Client(host=config.OLLAMA_BASE_URL)
+        except Exception as exception:
+            print(exception)
 
     def list_llm(self) -> list | None:
         try:
@@ -57,7 +58,7 @@ class LocalLLM:
             return [n.model for n in [model[1] for model in model_list][0]]
         except Exception as e:
             # logger.error('llm listing', str(e))
-            return None
+            return []
 
     @property
     def selected_model(self) -> str:
@@ -79,7 +80,7 @@ class LocalLLM:
             # logger.error('The selected_model is does not None')
             raise ValueError('The selected_model is does not None')
 
-        return self.load_prompt_template | OllamaLLM(client=self.client, model=self.selected_model) | self.parser
+        return self.load_prompt_template | OllamaLLM(client=self.client, model=self.selected_model, base_url=config.OLLAMA_BASE_URL) | self.parser
 
     def analyze_web_page_content(self, content_text) -> ContentAnalysis | None:
         try:
@@ -91,10 +92,11 @@ class LocalLLM:
             return None
             # raise e
 
-    def load_chat_history(self):
+    @staticmethod
+    def load_chat_history():
         """Önceki konuşmaları JSON'dan yükler"""
-        if self.HISTORY_FILE.exists():
-            with open(self.HISTORY_FILE, "r", encoding="utf-8") as f:
+        if config.HISTORY_FILE.exists():
+            with open(config.HISTORY_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 history = ChatMessageHistory()
                 for msg in data:
@@ -111,7 +113,7 @@ class LocalLLM:
         for msg in self.__chat_session_deque.messages:
             messages.append({"role": "human" if isinstance(msg, HumanMessage) else "ai", "content": msg.content})
 
-        with open(self.HISTORY_FILE, "w", encoding="utf-8") as f:
+        with open(config.HISTORY_FILE, "w", encoding="utf-8") as f:
             json.dump(messages, f, indent=2, ensure_ascii=False)
 
     def save_llm_message(self, message: str) -> None:
@@ -168,56 +170,57 @@ if __name__ == '__main__':
     # llm.selected_model = llm_list[selected_llm_index]
     llm.selected_model = llm_list[1]
 
-    # r = llm.analyze_mail("Pars", "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s")
-    r = llm.analyze_web_page_content(
-        """
-        <title>Cloudflare Web Application Firewall (WAF)</title>
-        
-        <p color="red">
-        403 Forbidden – Access Denied
-        
-        Cloudflare WAF has blocked your access request for security reasons. This may be due to suspicious behavior or a violation of application security rules.
-        
-        Reason:
-        
-        - A suspicious IP address or network scan was detected.
-        
-        - A request from a malicious traffic source was detected.
-        
-        - Invalid or dangerous URL parameters were used.
-        
-        If this is blocking your access and you normally need to access this page, please contact your system administrator or contact Cloudflare to request support.  
-        </p>
-        """
-    )
-
+    r = llm.chat_with_llm("Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s")
     print(r)
-
-    if r:
-        # Convert Pydantic model to a dictionary using model_dump
-        result_dict = r.model_dump()
-
-        # Convert the dictionary to a JSON string
-        result_json = json.dumps(result_dict, indent=2)
-
-        llm.save_llm_message(result_json)
-
-        # Print or return the JSON
-        print(result_json)
-
-        # prmt = input('promot: ')
-        prmt = 'googd job bro, can u do example scraper code for this web page'
-        p = llm.chat_with_llm(prmt)
-        print(p)
-
-    else:
-        print("Error: No result from analysis")
-    '''
-    ```json
-    {
-      "is_stuck_waf": true | false,
-      "content_is_readable": true | false,
-      "extractable_format": "json" | "csv" | "table" | "none",
-      "ai_comment": "..."
-    }
-    '''
+    # r = llm.analyze_web_page_content(
+    #     """
+    #     <title>Cloudflare Web Application Firewall (WAF)</title>
+    #
+    #     <p color="red">
+    #     403 Forbidden – Access Denied
+    #
+    #     Cloudflare WAF has blocked your access request for security reasons. This may be due to suspicious behavior or a violation of application security rules.
+    #
+    #     Reason:
+    #
+    #     - A suspicious IP address or network scan was detected.
+    #
+    #     - A request from a malicious traffic source was detected.
+    #
+    #     - Invalid or dangerous URL parameters were used.
+    #
+    #     If this is blocking your access and you normally need to access this page, please contact your system administrator or contact Cloudflare to request support.
+    #     </p>
+    #     """
+    # )
+    #
+    # print(r)
+    #
+    # if r:
+    #     # Convert Pydantic model to a dictionary using model_dump
+    #     result_dict = r.model_dump()
+    #
+    #     # Convert the dictionary to a JSON string
+    #     result_json = json.dumps(result_dict, indent=2)
+    #
+    #     llm.save_llm_message(result_json)
+    #
+    #     # Print or return the JSON
+    #     print(result_json)
+    #
+    #     # prmt = input('promot: ')
+    #     prmt = 'googd job bro, can u do example scraper code for this web page'
+    #     p = llm.chat_with_llm(prmt)
+    #     print(p)
+    #
+    # else:
+    #     print("Error: No result from analysis")
+    # '''
+    # ```json
+    # {
+    #   "is_stuck_waf": true | false,
+    #   "content_is_readable": true | false,
+    #   "extractable_format": "json" | "csv" | "table" | "none",
+    #   "ai_comment": "..."
+    # }
+    # '''

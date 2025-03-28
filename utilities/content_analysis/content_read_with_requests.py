@@ -1,4 +1,5 @@
 from models import ContentResultModel
+from utilities import api_endpoints_parser
 import requests
 from bs4 import BeautifulSoup
 from custom_logger import get_logger
@@ -22,6 +23,10 @@ def content_analysis_with_requests(target_url: str) -> ContentResultModel:
             content_result_model.title = page_title
             content_result_model.content = soup.text
             content_result_model.raw_html = response.text
+            scripts = soup.find_all("script")
+            scripts = [script.string for script in scripts if script.string]
+            content_result_model.api_requests, content_result_model.other_requests = api_endpoints_parser(scripts)
+
     except Exception as exception:
         logger.exception(exception, exc_info=True)
         content_result_model.has_err = True
@@ -30,4 +35,5 @@ def content_analysis_with_requests(target_url: str) -> ContentResultModel:
 
 if __name__ == '__main__':
     r = content_analysis_with_requests('https://farukseker.com.tr')
-    print(r)
+    print(r.api_requests)
+    print(r.other_requests)

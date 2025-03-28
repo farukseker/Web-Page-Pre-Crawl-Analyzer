@@ -1,3 +1,4 @@
 from .undetected_chromedriver_killer import undetected_chromedriver_killer
 from .api_gateway_finder import find_api_gateways
 from .waiter import wait_for_page_load, async_wait_for_page_load
+from .api_endpoints_parser import api_endpoints_parser

@@ -6,6 +6,7 @@ import tempfile
 
 BASE_DIR: Path = Path(__file__).resolve().parent
 TEMP_FOLDER: Path = Path(tempfile.gettempdir()).resolve() / 'WebSecurityAnalyzer'
+HISTORY_FILE = Path(BASE_DIR / "chat_history.json")
 
 if not os.path.exists(TEMP_FOLDER):
     os.makedirs(TEMP_FOLDER)
@@ -14,6 +15,11 @@ if not os.path.exists(TEMP_FOLDER):
 def remove_temp_dir() -> None:
     if os.path.exists(TEMP_FOLDER):
         os.remove(TEMP_FOLDER)
+
+
+def remove_chat_session() -> None:
+    with open(HISTORY_FILE, 'w', encoding='utf-8') as chf:
+        chf.write('[]')
 
 
 HEADERS: dict[str, str] = {
@@ -47,7 +53,9 @@ def make_chrome_options() -> Options:
     __chrome_options.add_argument("--enable-logging")
     __chrome_options.add_argument("--log-level=0")
     __chrome_options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
+    # __chrome_options.add_argument("--user-data-dir=" + str(TEMP_FOLDER / 'selenium-profile'))
     __chrome_options.add_argument("--user-data-dir=C:\\Users\\seker\\AppData\\Local\\Temp\\selenium-profile")
+
     return __chrome_options
 
 
@@ -58,3 +66,4 @@ with open(BASE_DIR / "script.js", 'r', encoding='utf-8') as script_file:
 with open(BASE_DIR / '.previews/default.img', 'r') as dif:
     DEFAULT_PREVIEW_IMAGE = dif.read()
 
+OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL')

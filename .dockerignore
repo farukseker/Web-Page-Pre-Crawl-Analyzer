@@ -1,3 +1,5 @@
 venv/
+venv
 .playground
 .ipynb_checkpoints
+.env

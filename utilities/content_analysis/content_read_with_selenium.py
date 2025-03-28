@@ -2,7 +2,7 @@ from custom_logger import get_logger
 from models import ContentResultModel
 import config
 from selenium import webdriver
-from utilities import undetected_chromedriver_killer
+from utilities import undetected_chromedriver_killer, api_endpoints_parser
 import time
 
 
@@ -15,9 +15,18 @@ def content_analysis_with_selenium(target_url: str) -> ContentResultModel:
         chrome_driver: webdriver.Chrome = webdriver.Chrome(options=config.make_chrome_options())
         chrome_driver.get(target_url)
 
-        for _ in range(2, 0, -1):
+        for _ in range(10, 0, -1):
             time.sleep(1)
             chrome_driver.execute_script("window.scrollBy(0, 1);")
+        try:
+            logs = chrome_driver.execute_script("return window.performance.getEntries();")
+            logs = [log["name"] for log in logs if "name" in log]
+        except Exception as exception:
+            logger.exception(exception)
+            content_result_model.has_err = True
+            logs = []
+
+        content_result_model.api_requests, content_result_model.other_requests = api_endpoints_parser(logs)
 
         content_result_model.title = chrome_driver.title
         content_result_model.content = chrome_driver.page_source
@@ -32,3 +41,8 @@ def content_analysis_with_selenium(target_url: str) -> ContentResultModel:
         undetected_chromedriver_killer(chrome_driver)
 
     return content_result_model
+
+
+if __name__ == '__main__':
+    r = content_analysis_with_selenium('https://farukseker.com.tr')
+    print(r)

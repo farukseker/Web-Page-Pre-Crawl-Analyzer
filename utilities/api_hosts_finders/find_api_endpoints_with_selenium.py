@@ -24,6 +24,7 @@ def check_page_api_urls_with_selenium(target_url) -> (set, set):
 
         for log in logs:
             if "name" in log:
+                print(log['name'])
                 api_match: bool = False
                 for pattern in config.API_PATTERNS:
                     if matches := re.findall(pattern, log["name"]):

@@ -1,4 +1,4 @@
-from utilities import undetected_chromedriver_killer
+from utilities import undetected_chromedriver_killer, api_endpoints_parser
 from models import ContentResultModel
 from custom_logger import get_logger
 import undetected_chromedriver
@@ -18,7 +18,7 @@ def content_analysis_with_undetected_chromedriver(url) -> ContentResultModel:
 
         time.sleep(.2)
         driver.get(url)
-        for _ in range(2, 0, -1):
+        for _ in range(10, 0, -1):
             time.sleep(1)
             driver.execute_script("window.scrollBy(0, 1);")
             print(f'{_}.second left')
@@ -27,6 +27,10 @@ def content_analysis_with_undetected_chromedriver(url) -> ContentResultModel:
         content_result_model.http_status = 200
         content_result_model.page_preview_path = str(config.TEMP_FOLDER / 'content-preview-selenium.png')
         driver.get_screenshot_as_file(content_result_model.page_preview_path)
+
+        logs = driver.execute_script("return window.performance.getEntries();")
+        logs = [log["name"] for log in logs if "name" in log]
+        content_result_model.api_requests, content_result_model.other_requests = api_endpoints_parser(logs)
 
     except Exception as exception:
         logger.exception(exception)

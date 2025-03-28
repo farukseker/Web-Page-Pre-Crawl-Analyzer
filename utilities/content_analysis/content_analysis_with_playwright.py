@@ -4,8 +4,7 @@ import config
 import aiofiles
 from custom_logger import get_logger
 from playwright.async_api import async_playwright
-from utilities import async_wait_for_page_load
-
+from utilities import async_wait_for_page_load, api_endpoints_parser
 
 logger = get_logger("content_analysis_with_playwright")
 
@@ -20,7 +19,7 @@ async def content_analysis_with_playwright(target_url: str) -> ContentResultMode
             await page.goto(target_url)
             await async_wait_for_page_load()
 
-            for _ in range(2, 0, -1):
+            for _ in range(10, 0, -1):
                 await asyncio.sleep(1)
                 await page.evaluate("window.scrollBy(0, 1);")
 
@@ -31,6 +30,10 @@ async def content_analysis_with_playwright(target_url: str) -> ContentResultMode
             async with aiofiles.open(content_result_model.page_preview_path, 'wb') as _content:
                 content = await page.screenshot()
                 await _content.write(content)
+            logs = await page.evaluate("() => window.performance?.getEntries?.() || []")
+            logs = [log["name"] for log in logs if "name" in log]
+            content_result_model.api_requests, content_result_model.other_requests = api_endpoints_parser(logs)
+
         except Exception as exception:
             logger.exception(exception, exc_info=True)
             content_result_model.has_err = True

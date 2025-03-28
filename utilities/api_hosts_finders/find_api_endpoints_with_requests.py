@@ -30,3 +30,9 @@ def find_api_endpoints_with_requests(target_url: str) -> set:
         logger.info("[✖] Sayfada açıkça görünen API endpointi bulunamadı.")
 
     return found_endpoints
+
+
+if __name__ == '__main__':
+    r = find_api_endpoints_with_requests('https://farukseker.com.tr')
+    from pprint import pprint
+    pprint(r)

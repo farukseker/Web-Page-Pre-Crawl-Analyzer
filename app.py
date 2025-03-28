@@ -1,9 +1,7 @@
 import streamlit as st
-import undetected_chromedriver
-from selenium import webdriver
 import time
 import config
-from dataclasses import asdict
+import atexit
 from utilities.robots import (
     get_robots_txt_with_requests,
     get_robots_txt_with_selenium,
@@ -17,7 +15,6 @@ from utilities.content_analysis import (
     content_analysis_with_playwright,
     content_analysis_with_undetected_chromedriver
 )
-
 from utilities import find_api_gateways
 from urllib.parse import urlparse
 import asyncio
@@ -27,8 +24,16 @@ from ai_agent import LocalLLM
 llm = LocalLLM()
 llm_list = llm.list_llm()
 
-do_task = False
 task_result = {}
+
+
+def cleanup():
+    config.remove_chat_session()
+    config.remove_temp_dir()
+
+
+atexit.register(cleanup)
+
 
 if "robots" not in st.session_state:
     st.session_state.robots = {}
@@ -142,8 +147,42 @@ def show_content_load_test_results():
         undetected_chromedriver_col.image(undetected_chromedriver_result.page_preview_path)
 
 
+def show_api_gateway_list():
+    requests_result, selenium_result, playwright_result, undetected_chromedriver_result = (
+        st.session_state.content_load_test.get('content_analysis_with_requests_result'),
+        st.session_state.content_load_test.get('content_analysis_with_selenium_result'),
+        st.session_state.content_load_test.get('content_analysis_with_playwright_result'),
+        st.session_state.content_load_test.get('content_analysis_with_undetected_chromedriver_result'),
+    )
+
+    if all([requests_result, selenium_result, playwright_result, undetected_chromedriver_result]):
+        api_set_list: set = set()
+        other_set_list: set = set()
+
+        api_set_list.update(requests_result.api_requests or [])
+        api_set_list.update(selenium_result.api_requests or [])
+        api_set_list.update(playwright_result.api_requests or [])
+        api_set_list.update(undetected_chromedriver_result.api_requests or [])
+
+        other_set_list.update(requests_result.other_requests or [])
+        other_set_list.update(selenium_result.other_requests or [])
+        other_set_list.update(playwright_result.other_requests or [])
+        other_set_list.update(undetected_chromedriver_result.other_requests or [])
+
+        st.subheader('API')
+        st.table([{'host': urlparse(api).hostname, 'path': api} for api in api_set_list if urlparse(api)])
+
+        st.subheader('Other Url')
+        st.table([{'host': urlparse(other).hostname, 'path': other} for other in other_set_list if urlparse(other)])
+
+
+# def timer_tick(secs):
+#     ph = st.empty()
+#     mm, ss = secs // 60, secs % 60
+#     ph.metric("Countdown", f"{mm:02d}:{ss:02d}")
+
+
 def main():
-    global do_task
     st.set_page_config(page_title="Web Page Analyzer", layout="wide")
     st.title("Web Page Analyzer")
 
@@ -166,7 +205,8 @@ def main():
         show_api_gateways_result()
 
     if "content_load_test" in st.session_state:
-        show_content_load_test_results()
+        # show_content_load_test_results()
+        show_api_gateway_list()
 
     if st.button("Analiz Et") and url:
         task_result.__setitem__(
@@ -257,6 +297,7 @@ def main():
             )
 
         show_content_load_test_results()
+        # show_api_gateway_list()
         st.session_state.content_is_load = True
 
     if "messages" not in st.session_state:
@@ -295,7 +336,7 @@ def main():
 
                     pre_prompt: str = """
                     MAKE SURE TO KEEP YOUR ANSWERS SHORT:
-                    
+
                     Look at this message, I will add the HTML document of your website in curly brackets at the end of this message, analyze this content
                     and tell me if the content is blocked by a waf or a bot protection, also try to understand the technologies it uses, we need this
                     then here is the content for you and MAKE SURE TO KEEP YOUR ANSWERS SHORT, MAKE SURE TO KEEP YOUR ANSWERS SHORT
@@ -330,12 +371,12 @@ def main():
                     time.sleep(.25)
                     response_placeholder.empty()
 
-                    # markdown_answer: str = f"""
-                    # {response.pop('ai_comment')}
-                    # ```json
-                    # {response}
-                    # ```
-                    # """
+                    markdown_answer: str = f"""
+                    {response.pop('ai_comment')}
+                    ```json
+                    {response}
+                    ```
+                    """
 
                     with st.chat_message('assistant'):
                         st.markdown(response)
@@ -389,4 +430,13 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+        print('app run')
+    except Exception as exception:
+        print(exception)
+    finally:
+        print('finall')
+        # config.remove_chat_session()
+        # config.remove_temp_dir()
+

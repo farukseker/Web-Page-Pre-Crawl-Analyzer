@@ -2,7 +2,7 @@ import re
 import config
 from custom_logger import get_logger
 from playwright.async_api import async_playwright
-from utilities import async_wait_for_page_load
+from utilities import async_wait_for_page_load, api_endpoints_parser
 
 
 logger = get_logger("find_api_endpoints_with_playwright")
