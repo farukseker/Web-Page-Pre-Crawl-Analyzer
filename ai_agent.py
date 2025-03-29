@@ -141,7 +141,6 @@ class LocalLLM:
         self.save_user_message(chat_message)
 
         if st:
-            response_placeholder = st.empty()
             model_reply = ""
 
             for chunk in self.conversation.stream(
@@ -149,7 +148,7 @@ class LocalLLM:
                     config=chat_conf
             ):
                 model_reply += chunk.content
-                response_placeholder.write(model_reply)
+                st.markdown(model_reply)
         else:
             response = self.conversation.invoke(
                 chat_message,

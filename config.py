@@ -3,6 +3,8 @@ from fake_useragent import UserAgent
 from selenium.webdriver.chrome.options import Options
 import os
 import tempfile
+from random import randint, randrange
+
 
 BASE_DIR: Path = Path(__file__).resolve().parent
 TEMP_FOLDER: Path = Path(tempfile.gettempdir()).resolve() / 'WebSecurityAnalyzer'
@@ -45,16 +47,25 @@ API_PATTERNS: list[str] = [
 ]
 
 
+def get_random_session_id():
+    return ''.join([str(randrange(0, 9)) for _ in range(10)])
+
+
 def make_chrome_options() -> Options:
     ua = UserAgent()
     __chrome_options = Options()
     __chrome_options.add_argument(f"user-agent={ua.random}")
+    __chrome_options.add_argument("--disable-gpu")
     __chrome_options.add_argument("--headless")
+    __chrome_options.add_argument("--no-sandbox")
     __chrome_options.add_argument("--enable-logging")
     __chrome_options.add_argument("--log-level=0")
     __chrome_options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
-    # __chrome_options.add_argument("--user-data-dir=" + str(TEMP_FOLDER / 'selenium-profile'))
-    __chrome_options.add_argument("--user-data-dir=C:\\Users\\seker\\AppData\\Local\\Temp\\selenium-profile")
+    temp_dir = tempfile.mkdtemp()
+    __chrome_options.add_argument(f"--user-data-dir={temp_dir}")
+
+    # __chrome_options.add_argument("--user-data-dir=" + str(TEMP_FOLDER / f'selenium-profile_{get_random_session_id()}'))
+    # __chrome_options.add_argument("--user-data-dir=C:\\Users\\seker\\AppData\\Local\\Temp\\selenium-profile")
 
     return __chrome_options
 
