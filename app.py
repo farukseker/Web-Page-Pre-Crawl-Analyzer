@@ -153,10 +153,10 @@ def show_content_load_test_results():
     if not st.session_state.content_load_test:
         return
     requests_result, selenium_result, playwright_result, undetected_chromedriver_result = (
-        st.session_state.content_load_test.get('content_analysis_with_requests_result'),
-        st.session_state.content_load_test.get('content_analysis_with_selenium_result'),
-        st.session_state.content_load_test.get('content_analysis_with_playwright_result'),
-        st.session_state.content_load_test.get('content_analysis_with_undetected_chromedriver_result'),
+        st.session_state.content_load_test.get('requests_result'),
+        st.session_state.content_load_test.get('selenium_result'),
+        st.session_state.content_load_test.get('playwright_result'),
+        st.session_state.content_load_test.get('undetected_chromedriver_result'),
     )
     if any([requests_result, selenium_result, playwright_result, undetected_chromedriver_result]):
         st.subheader('Content Load Tests')
@@ -201,38 +201,23 @@ def show_api_gateway_list():
     global loop, selected_tools
     if not st.session_state.content_load_test:
         return
-    requests_result, selenium_result, playwright_result, undetected_chromedriver_result = (
-        st.session_state.content_load_test.get('content_analysis_with_requests_result'),
-        st.session_state.content_load_test.get('content_analysis_with_selenium_result'),
-        st.session_state.content_load_test.get('content_analysis_with_playwright_result'),
-        st.session_state.content_load_test.get('content_analysis_with_undetected_chromedriver_result'),
-    )
 
-    if any([requests_result, selenium_result, playwright_result, undetected_chromedriver_result]):
-        api_set_list: set = set()
-        other_set_list: set = set()
+    api_set_list: set = set()
+    other_set_list: set = set()
 
-        api_set_list.update(requests_result.api_requests if requests_result else [])
-        api_set_list.update(selenium_result.api_requests if selenium_result else [])
-        api_set_list.update(playwright_result.api_requests if playwright_result else [])
-        api_set_list.update(undetected_chromedriver_result.api_requests if undetected_chromedriver_result else [])
+    for selected_tool in selected_tools:
+        state = st.session_state.content_load_test.get(f'{selected_tool}_result')
+        api_set_list.update(state.api_requests)
+        other_set_list.update(state.other_requests)
 
-        other_set_list.update(requests_result.other_requests if requests_result else [])
-        other_set_list.update(selenium_result.other_requests if selenium_result else [])
-        other_set_list.update(playwright_result.other_requests if playwright_result else [])
-        other_set_list.update(undetected_chromedriver_result.other_requests if undetected_chromedriver_result else [])
+    st.session_state.overload_test_url_list.update(api_set_list)
+    st.session_state.overload_test_url_list.update(other_set_list)
 
-        st.session_state.overload_test_url_list.update(api_set_list)
-        st.session_state.overload_test_url_list.update(other_set_list)
+    st.subheader('API')
+    st.table([{'host': urlparse(api).hostname, 'path': urlparse(api).path} for api in api_set_list if urlparse(api)])
 
-        st.subheader('API')
-        st.table([{'host': urlparse(api).hostname, 'path': urlparse(api).path} for api in api_set_list if urlparse(api)])
-
-        st.subheader('Other Url')
-        st.table([{'host': urlparse(other).hostname, 'path': urlparse(other).path[:30]} for other in other_set_list if urlparse(other)])
-
-
-
+    st.subheader('Other Url')
+    st.table([{'host': urlparse(other).hostname, 'path': urlparse(other).path[:30]} for other in other_set_list if urlparse(other)])
 
 
 def main():
@@ -340,7 +325,7 @@ def main():
                         with st.spinner('Waiting for Requests :'):
                             content_analysis_with_requests_result = content_analysis_with_requests(target_url=url)
                             st.session_state.content_load_test.__setitem__(
-                                "content_analysis_with_requests_result",
+                                "requests_result",
                                 content_analysis_with_requests_result
                             )
                             time.sleep(1)
@@ -348,7 +333,7 @@ def main():
                         with st.spinner('Waiting for Selenium :'):
                             content_analysis_with_selenium_result = content_analysis_with_selenium(target_url=url)
                             st.session_state.content_load_test.__setitem__(
-                                "content_analysis_with_selenium_result",
+                                "selenium_result",
                                 content_analysis_with_selenium_result
                             )
                             time.sleep(1)
@@ -356,7 +341,7 @@ def main():
                         with st.spinner('Waiting for Playwright :'):
                             content_analysis_with_playwright_result = loop.run_until_complete(content_analysis_with_playwright(url))
                             st.session_state.content_load_test.__setitem__(
-                                "content_analysis_with_playwright_result",
+                                "playwright_result",
                                 content_analysis_with_playwright_result
                             )
                             time.sleep(1)
@@ -364,7 +349,7 @@ def main():
                         with st.spinner('Waiting for Undetected Chromedriver :'):
                             content_analysis_with_undetected_chromedriver_result = content_analysis_with_undetected_chromedriver(url)
                             st.session_state.content_load_test.__setitem__(
-                                "content_analysis_with_undetected_chromedriver_result",
+                                "undetected_chromedriver_result",
                                 content_analysis_with_undetected_chromedriver_result
                             )
                     case _:
@@ -380,111 +365,90 @@ def main():
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # if not st.session_state.wt_chat and st.session_state.content_is_load:
-    #     if st.button('What Think Chat'):
-    #         st.session_state.wt_chat = True
-    #
-    # if st.session_state.wt_chat and not st.session_state.analyzed and st.session_state.content_is_load:
-    #     with st.spinner(f"{llm.selected_model}'is thinking"):
-    #         try:
-    #             # CONTENT MUST BE TRANSFER TO STATE 'CASUE ISNT MOEL
-    #             query_context = [
-    #                 {
-    #                     "test_module": "Requests module content: ",
-    #                     "content": content_analysis_with_requests_result.content
-    #                 } if 'requests' in selected_tools else None,
-    #                 {
-    #                     "test_module": "Selenium module content: ",
-    #                     "content": content_analysis_with_selenium_result.content
-    #                 } if 'selenium' in selected_tools else None,
-    #                 {
-    #                     "test_module": "Playwright module content: ",
-    #                     "content": content_analysis_with_playwright_result.content
-    #                 } if 'playwright' in selected_tools else None,
-    #                 {
-    #                     "test_module": "Undetected Chromedriver module content: ",
-    #                     "content": content_analysis_with_undetected_chromedriver_result.content
-    #                 } if 'undetected_chromedriver' in selected_tools else None
-    #             ]
-    #             for context in query_context:
-    #                 if not isinstance(context, dict):
-    #                     continue
-    #                 pre_message = 'analyze content taken by {module}'
-    #                 module = context.get('test_module', '').split(' ')[0]
-    #
-    #                 pre_prompt: str = """
-    #                 MAKE SURE TO KEEP YOUR ANSWERS SHORT:
-    #
-    #                 Look at this message, I will add the HTML document of your website in curly brackets at the end of this message, analyze this content
-    #                 and tell me if the content is blocked by a waf or a bot protection, also try to understand the technologies it uses, we need this
-    #                 then here is the content for you and MAKE SURE TO KEEP YOUR ANSWERS SHORT, MAKE SURE TO KEEP YOUR ANSWERS SHORT
-    #                 {test_module}
-    #                 {content}
-    #                 """
-    #
-    #                 with st.chat_message('user'):
-    #                     st.markdown(pre_message.format(module=module))
-    #                     llm.save_user_message(
-    #                         pre_prompt.format(
-    #                             test_module=context.get('test_module'),
-    #                             content=context.get('content')
-    #                         )
-    #                     )
-    #
-    #                 st.session_state.messages.append({
-    #                     "role": "user",
-    #                     "content": pre_message.format(module=module)
-    #                 })
-    #
-    #                 with st.chat_message('assistant'):
-    #                     response_placeholder = st.empty()
-    #                     response = llm.chat_with_llm(
-    #                         pre_prompt.format(
-    #                             test_module=context.get('test_module'),
-    #                             content=context.get('content')
-    #                         ),
-    #                         response_placeholder
-    #                     )
-    #                     time.sleep(.25)
-    #                     llm.save_llm_message(response)
-    #
-    #                 st.session_state.messages.append({
-    #                     "role": "assistant",
-    #                     "content": response
-    #                 })
-    #
-    #             with st.chat_message('system'):
-    #                 message = f'''
-    #                 In my previous 4 proms, I send you the html content of a web page and you will help the user
-    #                 based on this content, while showing analysis and examples,
-    #                 the domain name web style you will take as a basis '{url}' '''
-    #                 st.markdown(message)
-    #                 # llm.save_user_message(message)
-    #                 response_placeholder = st.empty()
-    #                 r = llm.chat_with_llm(message, response_placeholder)
-    #                 st.session_state.messages.append({
-    #                     "role": "assistant",
-    #                     "content": r
-    #                 })
-    #         except Exception as e:
-    #             print('LLM ERROR: ')
-    #             print(e)
-    #     st.session_state.analyzed = True
-    #
-    # if st.session_state.wt_chat and st.session_state.analyzed:
-    #     user_input = st.chat_input("Mesajınızı yazın...")
-    #     if user_input:
-    #         st.session_state.messages.append({"role": "user", "content": user_input})
-    #
-    #         with st.chat_message("user"):
-    #             st.markdown(user_input)
-    #
-    #         with st.chat_message('assistant'):
-    #             response_placeholder = st.empty()
-    #             response = llm.chat_with_llm(user_input, response_placeholder)
-    #             time.sleep(.25)
-    #             llm.save_llm_message(response)
-    #             st.session_state.messages.append({"role": "assistant", "content": response})
+    if not st.session_state.wt_chat and st.session_state.content_is_load:
+        if st.button('What Think Chat'):
+            st.session_state.wt_chat = True
+
+    if st.session_state.wt_chat and not st.session_state.analyzed and st.session_state.content_is_load:
+        with st.spinner(f"{llm.selected_model}'is thinking"):
+            try:
+                pre_message = 'analyze content taken by {module}'
+                pre_prompt: str = """
+                MAKE SURE TO KEEP YOUR ANSWERS SHORT:
+                Look at this message, I will add the HTML document of your website in curly brackets at the end of this message, analyze this content
+                and tell me if the content is blocked by a waf or a bot protection, also try to understand the technologies it uses, we need this
+                then here is the content for you and MAKE SURE TO KEEP YOUR ANSWERS SHORT, MAKE SURE TO KEEP YOUR ANSWERS SHORT
+                {test_module}
+                {content}
+                """
+
+                for selected_tool in selected_tools:
+                    state = st.session_state.content_load_test.get(f'{selected_tool}_result')
+
+                    with st.chat_message('user'):
+                        st.markdown(pre_message.format(module=state.processors))
+                        llm.save_user_message(
+                            pre_prompt.format(
+                                test_module=f'{state.processors} module content: ',
+                                content=state.raw_html
+                            )
+                        )
+
+                    st.session_state.messages.append({
+                        "role": "user",
+                        "content": pre_message.format(module=state.processors)
+                    })
+
+                    with st.chat_message('assistant'):
+                        response_placeholder = st.empty()
+                        response = llm.chat_with_llm(
+                            pre_prompt.format(
+                                test_module=f'{state.processors} module content: ',
+                                content=state.raw_html
+                            ),
+                            response_placeholder
+                        )
+                        time.sleep(.25)
+                        llm.save_llm_message(response)
+
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": response
+                    })
+
+                with st.chat_message('system'):
+                    message = f'''
+                    In my previous 4 proms, I send you the html content of a web page and you will help the user
+                    based on this content, while showing analysis and examples,
+                    the domain name web style you will take as a basis '{url}' '''
+                    st.markdown(message)
+                    # llm.save_user_message(message)
+                    response_placeholder = st.empty()
+                    r = llm.chat_with_llm(message, response_placeholder)
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": r
+                    })
+
+            except Exception as e:
+                print('LLM ERROR: ')
+                print(e)
+        st.session_state.analyzed = True
+
+    if st.session_state.wt_chat and st.session_state.analyzed:
+        user_input = st.chat_input("Mesajınızı yazın...")
+        if user_input:
+            st.session_state.messages.append({"role": "user", "content": user_input})
+
+            with st.chat_message("user"):
+                st.markdown(user_input)
+
+            with st.chat_message('assistant'):
+                response_placeholder = st.empty()
+                response = llm.chat_with_llm(user_input, response_placeholder)
+                time.sleep(.25)
+                llm.save_llm_message(response)
+                st.session_state.messages.append({"role": "assistant", "content": response})
 
 
 if __name__ == "__main__":

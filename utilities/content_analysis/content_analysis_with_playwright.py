@@ -10,7 +10,7 @@ logger = get_logger("content_analysis_with_playwright")
 
 
 async def content_analysis_with_playwright(target_url: str) -> ContentResultModel:
-    content_result_model: ContentResultModel = ContentResultModel(processors='selenium')
+    content_result_model: ContentResultModel = ContentResultModel(processors='Playwright')
     async with async_playwright() as playwright:
         try:
             chromium = playwright.chromium  # "firefox" || "webkit".
