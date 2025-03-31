@@ -13,3 +13,4 @@ psutil
 langchain
 langchain_ollama
 langchain-community
+sqlalchemy

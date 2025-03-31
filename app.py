@@ -46,36 +46,23 @@ def cleanup():
 
 atexit.register(cleanup)
 
+default_values = {
+    "robots": {},
+    "api_gateways": [],
+    "content_load_test": {},
+    "messages": [],
+    "selected_url": '',
+    "analyzed": False,
+    "content_is_load": False,
+    "start_analyze": False,
+    "wt_chat": False,
+    "overload_test_url_list": set(),
+}
 
-if "robots" not in st.session_state:
-    st.session_state.robots = {}
+for key, value in default_values.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
 
-if "api_gateways" not in st.session_state:
-    st.session_state.api_gateways = []
-
-if "content_load_test" not in st.session_state:
-    st.session_state.content_load_test = {}
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-if "selected_url" not in st.session_state:
-    st.session_state.selected_url = ''
-
-if "analyzed" not in st.session_state:
-    st.session_state.analyzed = False
-
-if "content_is_load" not in st.session_state:
-    st.session_state.content_is_load = False
-
-if "start_analyze" not in st.session_state:
-    st.session_state.start_analyze = False
-
-if "wt_chat" not in st.session_state:
-    st.session_state.wt_chat = False
-
-if "overload_test_url_list" not in st.session_state:
-    st.session_state.overload_test_url_list = set()
 
 llm = LocalLLM()
 llm_list = llm.list_llm()
