@@ -72,3 +72,6 @@ with open(BASE_DIR / '.previews/default.img', 'r') as dif:
     DEFAULT_PREVIEW_IMAGE = dif.read()
 
 OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL')
+
+with open(BASE_DIR / 'ai_prompt_templates/task.rulers', 'r') as dif:
+    OLLAMA_RULES = dif.read()

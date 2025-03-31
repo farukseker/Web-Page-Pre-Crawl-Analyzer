@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from langchain_ollama import ChatOllama
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_ollama.llms import OllamaLLM
 from langchain_ollama.chat_models import Client
 from langchain.prompts import PromptTemplate
@@ -100,13 +100,14 @@ class LocalLLM:
 
     def load_chat_history(self):
         history = ChatMessageHistory()
-        hs = ChatHistory.load_chat_history(self.chat_room_id)
         if db_history := ChatHistory.load_chat_history(self.chat_room_id):
             for chat in db_history:
                 if chat.get('role') == 'human':
-                    history.add_user_message(chat.get('content'))
+                    history.add_user_message(HumanMessage(content=chat.get('content')))
+                elif chat.get('role') == 'ai':
+                    history.add_ai_message(AIMessage(content=chat.get('content')))
                 else:
-                    history.add_ai_message(chat.get('content'))
+                    history.add_message(SystemMessage(content=chat.get('content')))
         self.__chat_session_deque = history
         return history
 
@@ -116,6 +117,15 @@ class LocalLLM:
             "ai",
             message
         )
+        self.__chat_session_deque.add_ai_message(message)
+
+    def save_system_message(self, message) -> None:
+        ChatHistory.save_message(
+            self.chat_room_id,
+            "system",
+            message
+        )
+        self.__chat_session_deque.add_ai_message(message)
 
     def save_user_message(self, message: str) -> None:
         ChatHistory.save_message(
@@ -123,8 +133,7 @@ class LocalLLM:
             "human",
             message
         )
-
-        # self.__chat_session_deque.add_user_message(message)
+        self.__chat_session_deque.add_user_message(message)
         # self.save_chat_history()
 
     @property

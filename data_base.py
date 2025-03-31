@@ -21,7 +21,7 @@ class ChatMessage(Base):
     __tablename__ = "chat_messages"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     room_id = Column(String, ForeignKey("chat_rooms.id"), nullable=False)
-    role = Column(String, nullable=False)  # 'human' veya 'ai'
+    role = Column(String, nullable=False)  # 'human' || 'ai'
     content = Column(Text, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
     chat_room = relationship("ChatRoom", back_populates="messages")
@@ -59,11 +59,20 @@ class ChatHistory:
         finally:
             session.close()
 
+    @staticmethod
+    def remove_all_chats():
+        session = SessionLocal()
+        try:
+            session.query(ChatMessage).delete()
+            session.query(ChatRoom).delete()
+            session.commit()
+        finally:
+            session.close()
 
-# Örnek kullanım
+
 if __name__ == "__main__":
     room_id = ChatHistory.create_room()
-    print(f"Yeni oda ID: {room_id}")
+    print(f"Room id: {room_id}")
     ChatHistory.save_message(room_id, "human", "Merhaba, nasılsın?")
     ChatHistory.save_message(room_id, "ai", "İyiyim, sen nasılsın2?")
     history = ChatHistory.load_chat_history(room_id)

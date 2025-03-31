@@ -2,6 +2,7 @@ import streamlit as st
 import time
 import config
 import atexit
+from data_base import ChatHistory
 from utilities.robots import (
     get_robots_txt_with_requests,
     get_robots_txt_with_selenium,
@@ -41,7 +42,7 @@ def clear_results() -> None:
 
 
 def cleanup():
-    config.remove_temp_dir()
+    ChatHistory.remove_all_chats()
 
 
 atexit.register(cleanup)
@@ -57,6 +58,9 @@ default_values = {
     "start_analyze": False,
     "wt_chat": False,
     "overload_test_url_list": set(),
+    "pre_content": '',
+    "pre_content_name": '',
+    "pre_content_extension": '',
 }
 
 for key, value in default_values.items():
@@ -78,43 +82,20 @@ llm.load_chat_history()
 
 def show_robots_result():
     global loop, selected_tools, all_colons
-    if not st.session_state.robots:
+    if not st.session_state.get('robots'):
         return
 
-    requests_result, selenium_result, playwright_result, undetected_chromedriver_result = (
-        st.session_state.robots.get('requests_result'),
-        st.session_state.robots.get('selenium_result'),
-        st.session_state.robots.get('undetected_chromedriver_result'),
-        st.session_state.robots.get('playwright_result')
-    )
-
-    if any([requests_result, selenium_result, playwright_result, undetected_chromedriver_result]):
+    if results := [
+        st.session_state.robots.get(f'{tool}_result')
+        for tool in selected_tools if st.session_state.robots.get(f'{tool}_result', None)
+    ]:
         st.subheader("Robots.txt Sonucu")
-        for tool, col in zip(selected_tools, st.columns(len(selected_tools))):
+        for result, col in zip(results, st.columns(len(results))):
+            col.subheader(f'{result.processor} Result')
+            col.code(f"HTTP STATUS: {result.http_status}")
+            col.code(f"ERROR: {result.has_err}")
+            col.code(result.content)
             all_colons.append(col)
-            match tool:
-                case 'requests':
-                    col.subheader('Requests Result')
-                    col.code(f"HTTP STATUS: {requests_result.http_status}")
-                    col.code(f"ERROR: {requests_result.has_err}")
-                    col.code(requests_result.content)
-                case 'selenium':
-                    col.subheader('Selenium Result')
-                    col.code(f"HTTP STATUS: {selenium_result.http_status}")
-                    col.code(f"ERROR: {selenium_result.has_err}")
-                    col.code(selenium_result.content)
-                case 'playwright':
-                    col.subheader('Playwright Result')
-                    col.code(f"HTTP STATUS: {playwright_result.http_status}")
-                    col.code(f"ERROR: {playwright_result.has_err}")
-                    col.code(playwright_result.content)
-                case 'undetected_chromedriver':
-                    col.subheader('Undetected Chromedriver Result')
-                    col.code(f"HTTP STATUS: {undetected_chromedriver_result.http_status}")
-                    col.code(f"ERROR: {undetected_chromedriver_result.has_err}")
-                    col.code(undetected_chromedriver_result.content)
-                case _:
-                    ...
 
 
 def show_api_gateways_result():
@@ -216,6 +197,34 @@ def show_api_gateway_list():
     st.subheader('Other Url')
     st.table([{'host': urlparse(other).hostname, 'path': urlparse(other).path[:30]} for other in other_set_list if urlparse(other)])
 
+
+def format_file_size(size):
+    for unit in ["B", "KB", "MB", "GB"]:
+        if size < 1024.0:
+            return f"{size:.1f} {unit}"
+        size /= 1024.0
+    return f"{size:.1f} TB"
+
+
+def show_message(message: dict) -> None:
+    with st.chat_message(message["role"]):
+        if file := message.get('file', None):
+            file_text = f'{'🟥' if file.get('extension', '') == 'html' else '🟧'} {file.get('name')}'
+            st.markdown(
+                f"""
+                <div style="
+                    border: 1px solid #ccc;
+                    border-radius: 5px;
+                    padding: 8px;
+                    margin-top: 5px;
+                    background-color: #f9f9f9;
+                ">
+                     {file_text} {format_file_size(file.get('size', 0))}
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        st.markdown(message["content"])
 
 def main():
     global loop, selected_tools, selected_tasks
@@ -354,18 +363,17 @@ def main():
                         ...
                 time.sleep(1)
 
-    if st.session_state.content_load_test:
-        if TASK_ROBOT_TXT in selected_tasks:
-            show_robots_result()
-        if TASK_API_GATEWAYS_TXT in selected_tasks:
-            show_api_gateway_list()
-        if TASK_CONTENT_LOAD_TXT in selected_tasks:
-            show_content_load_test_results()
-            show_api_gateways_result()
+    # if st.session_state.content_load_test:
+    if TASK_ROBOT_TXT in selected_tasks:
+        show_robots_result()
+    if TASK_API_GATEWAYS_TXT in selected_tasks:
+        show_api_gateway_list()
+    if TASK_CONTENT_LOAD_TXT in selected_tasks:
+        show_content_load_test_results()
+        show_api_gateways_result()
 
     for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+        show_message(message)
 
     if st.session_state.content_is_load and TASK_CONTENT_LOAD_TXT in selected_tasks:
         col1, col2 = st.columns([1, 3])
@@ -391,6 +399,8 @@ def main():
                 """.replace('\n', '')
 
                 for selected_tool in selected_tools:
+                    llm.save_system_message(config.OLLAMA_RULES)
+
                     state = st.session_state.content_load_test.get(f'{selected_tool}_result')
 
                     with st.chat_message('user'):
@@ -417,7 +427,7 @@ def main():
                             response_placeholder
                         )
                         time.sleep(.25)
-                        llm.save_llm_message(response)
+                        # llm.save_llm_message(response)
 
                     st.session_state.messages.append({
                         "role": "assistant",
@@ -434,7 +444,7 @@ def main():
                     response_placeholder = st.empty()
                     r = llm.chat_with_llm(message.replace('\n', ''), response_placeholder)
                     st.session_state.messages.append({
-                        "role": "ai",
+                        "role": "system",
                         "content": r
                     })
 
@@ -442,19 +452,52 @@ def main():
                 print('LLM ERROR: ')
                 print(e)
 
+    if st.session_state.wt_chat and st.session_state.content_is_load:
+        tools_variant = [
+            variant
+            for selected_tool in selected_tools
+            for variant in (f"{selected_tool}_html", f"{selected_tool}_text")
+        ]
+
+        for tool_variant, col in zip(tools_variant, st.columns(len(tools_variant))):
+            if col.button(tool_variant.replace('_', ' ').title(), key=tool_variant, use_container_width=True):
+                content = st.session_state.content_load_test.get(f'{tool_variant.replace('_text', '').replace('_html', '')}_result')
+                context = content.content if tool_variant.endswith('_text') else content.raw_html
+                st.session_state.pre_content = context
+                st.session_state.pre_content_name = tool_variant.replace('_text', '').replace('_html', '').replace('_', ' ').title()
+                st.session_state.pre_content_extension = 'text' if tool_variant.endswith('_text') else 'html'
+
+                st.markdown(f"**📁 Selected File: {st.session_state.pre_content_name}.{st.session_state.pre_content_extension}**")
+
     if st.session_state.wt_chat and st.session_state.analyzed:
-        user_input = st.chat_input("Mesajınızı yazın...")
+        pre_message = f'```{st.session_state.pre_content_extension}\n{st.session_state.pre_content}```' if st.session_state.pre_content else ''
+        user_input = st.chat_input("Mesajınızı yazın:")
+
         if user_input:
-            st.session_state.messages.append({"role": "user", "content": user_input})
+            pyload = {
+                "role": "user",
+                "content": user_input,
+            }
+            if pre_message:
+                st.markdown(f"**📁 Added a file: {st.session_state.pre_content_name}.{st.session_state.pre_content_extension}**")
+                pyload.update({
+                    "file": {
+                        'name': st.session_state.pre_content_name,
+                        'extension': st.session_state.pre_content_extension,
+                        'size': len(st.session_state.pre_content)
+                    }
+                })
+
+            st.session_state.messages.append(pyload)
 
             with st.chat_message("user"):
                 st.markdown(user_input)
 
             with st.chat_message('assistant'):
                 response_placeholder = st.empty()
-                response = llm.chat_with_llm(user_input, response_placeholder)
+                message = f'{user_input} ```{pre_message}```' if pre_message else user_input
+                response = llm.chat_with_llm(message, response_placeholder)
                 time.sleep(.25)
-                llm.save_llm_message(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
 
 
