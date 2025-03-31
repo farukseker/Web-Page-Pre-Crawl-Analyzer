@@ -24,8 +24,12 @@ def content_analysis_with_undetected_chromedriver(url) -> ContentResultModel:
             print(f'{_}.second left')
         content_result_model.title = driver.title
         content_result_model.content = driver.page_source
+        content_result_model.raw_html = driver.page_source
         content_result_model.http_status = 200
         content_result_model.page_preview_path = str(config.TEMP_FOLDER / 'content-preview-selenium.png')
+        width = driver.execute_script("return document.documentElement.scrollWidth")
+        height = driver.execute_script("return document.documentElement.scrollHeight")
+        driver.set_window_size(width, height)
         driver.get_screenshot_as_file(content_result_model.page_preview_path)
 
         logs = driver.execute_script("return window.performance.getEntries();")

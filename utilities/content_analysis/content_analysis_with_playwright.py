@@ -15,6 +15,9 @@ async def content_analysis_with_playwright(target_url: str) -> ContentResultMode
         try:
             chromium = playwright.chromium  # "firefox" || "webkit".
             browser = await chromium.launch()
+            await browser.new_context(
+                viewport={"width": 1920, "height": 1080}
+            )
             page = await browser.new_page()
             await page.goto(target_url)
             await async_wait_for_page_load()
@@ -25,10 +28,11 @@ async def content_analysis_with_playwright(target_url: str) -> ContentResultMode
 
             content_result_model.title = await page.title()
             content_result_model.content = await page.content()
+            content_result_model.raw_html = await page.content()
 
             content_result_model.page_preview_path = str(config.TEMP_FOLDER / 'content-preview-playwright.png')
             async with aiofiles.open(content_result_model.page_preview_path, 'wb') as _content:
-                content = await page.screenshot()
+                content = await page.screenshot(full_page=True)
                 await _content.write(content)
             logs = await page.evaluate("() => window.performance?.getEntries?.() || []")
             logs = [log["name"] for log in logs if "name" in log]

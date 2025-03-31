@@ -1,5 +1,6 @@
 venv/
 venv
+chat_history.db
 .playground
 .ipynb_checkpoints
 .env

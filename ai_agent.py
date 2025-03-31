@@ -10,6 +10,7 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 from pydantic import BaseModel
 import config
+from data_base import ChatHistory
 
 
 class ContentAnalysis(BaseModel):
@@ -26,9 +27,14 @@ class LocalLLM:
         self.__selected_template: Path | str | None = config.BASE_DIR / 'ai_prompt_templates/content_analysis.prompt'
         self.__selected_model: str | None = None
         # self.ollm = self.do_ollama_llm()
-        self.__chat_session_deque = self.load_chat_history()
         self.chat_bot: ChatOllama | None = None
         self.conversation = None
+        self.__chat_session_deque = None
+        self.chat_room_id = None
+
+    @staticmethod
+    def create_chat_room():
+        return ChatHistory.create_room()
 
     def start_conversation(self):
         self.conversation = RunnableWithMessageHistory(self.chat_bot, lambda session_id: self.__chat_session_deque)
@@ -92,37 +98,34 @@ class LocalLLM:
             return None
             # raise e
 
-    @staticmethod
-    def load_chat_history():
-        """Önceki konuşmaları JSON'dan yükler"""
-        if config.HISTORY_FILE.exists():
-            with open(config.HISTORY_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                history = ChatMessageHistory()
-                for msg in data:
-                    if msg["role"] == "human":
-                        history.add_user_message(msg["content"])
-                    else:
-                        history.add_ai_message(msg["content"])
-                return history
-        return ChatMessageHistory()
-
-    def save_chat_history(self):
-        """Mevcut konuşmaları JSON dosyasına kaydeder"""
-        messages = []
-        for msg in self.__chat_session_deque.messages:
-            messages.append({"role": "human" if isinstance(msg, HumanMessage) else "ai", "content": msg.content})
-
-        with open(config.HISTORY_FILE, "w", encoding="utf-8") as f:
-            json.dump(messages, f, indent=2, ensure_ascii=False)
+    def load_chat_history(self):
+        history = ChatMessageHistory()
+        hs = ChatHistory.load_chat_history(self.chat_room_id)
+        if db_history := ChatHistory.load_chat_history(self.chat_room_id):
+            for chat in db_history:
+                if chat.get('role') == 'human':
+                    history.add_user_message(chat.get('content'))
+                else:
+                    history.add_ai_message(chat.get('content'))
+        self.__chat_session_deque = history
+        return history
 
     def save_llm_message(self, message: str) -> None:
-        self.__chat_session_deque.add_ai_message(message)
-        self.save_chat_history()
+        ChatHistory.save_message(
+            self.chat_room_id,
+            "ai",
+            message
+        )
 
     def save_user_message(self, message: str) -> None:
-        self.__chat_session_deque.add_user_message(message)
-        self.save_chat_history()
+        ChatHistory.save_message(
+            self.chat_room_id,
+            "human",
+            message
+        )
+
+        # self.__chat_session_deque.add_user_message(message)
+        # self.save_chat_history()
 
     @property
     def chat_history(self) -> ChatMessageHistory:
@@ -134,10 +137,6 @@ class LocalLLM:
                 "session_id": "scraper_user_alpha"
                 }
             }
-
-        # if not self.conversation:
-        #     raise NotImplementedError('first start conversation')
-
         self.save_user_message(chat_message)
 
         if st:

@@ -30,8 +30,12 @@ def content_analysis_with_selenium(target_url: str) -> ContentResultModel:
 
         content_result_model.title = chrome_driver.title
         content_result_model.content = chrome_driver.page_source
+        content_result_model.raw_html = chrome_driver.page_source
 
         content_result_model.page_preview_path = str(config.TEMP_FOLDER / 'content-preview-selenium.png')
+        width = chrome_driver.execute_script("return document.documentElement.scrollWidth")
+        height = chrome_driver.execute_script("return document.documentElement.scrollHeight")
+        chrome_driver.set_window_size(width, height)
         chrome_driver.get_screenshot_as_file(content_result_model.page_preview_path)
 
     except Exception as exception:

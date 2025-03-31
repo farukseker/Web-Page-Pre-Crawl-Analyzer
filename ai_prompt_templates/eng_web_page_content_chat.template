@@ -1,0 +1,7 @@
+MAKE SURE TO KEEP YOUR ANSWERS SHORT:
+Look at this message, I will add the HTML document of your website in curly brackets at the end of this message, analyze this content
+and tell me if the content is blocked by a waf or a bot protection, also try to understand the technologies it uses, we need this
+then here is the content for you and MAKE SURE TO KEEP YOUR ANSWERS SHORT
+!MAKE SURE TO KEEP YOUR ANSWERS SHORT!
+{{test_module}}
+{{content}}

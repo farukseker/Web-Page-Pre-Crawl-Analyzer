@@ -3,12 +3,11 @@ from fake_useragent import UserAgent
 from selenium.webdriver.chrome.options import Options
 import os
 import tempfile
-from random import randint, randrange
+from random import randrange
 
 
 BASE_DIR: Path = Path(__file__).resolve().parent
 TEMP_FOLDER: Path = Path(tempfile.gettempdir()).resolve() / 'WebSecurityAnalyzer'
-HISTORY_FILE = Path(BASE_DIR / "chat_history.json")
 
 if not os.path.exists(TEMP_FOLDER):
     os.makedirs(TEMP_FOLDER)
@@ -17,11 +16,6 @@ if not os.path.exists(TEMP_FOLDER):
 def remove_temp_dir() -> None:
     if os.path.exists(TEMP_FOLDER):
         os.remove(TEMP_FOLDER)
-
-
-def remove_chat_session() -> None:
-    with open(HISTORY_FILE, 'w', encoding='utf-8') as chf:
-        chf.write('[]')
 
 
 HEADERS: dict[str, str] = {
@@ -52,9 +46,9 @@ def get_random_session_id():
 
 
 def make_chrome_options() -> Options:
-    ua = UserAgent()
+    ua = UserAgent(platforms='desktop')
     __chrome_options = Options()
-    __chrome_options.add_argument(f"user-agent={ua.random}")
+    __chrome_options.add_argument(f"user-agent={ua.chrome}")
     __chrome_options.add_argument("--disable-gpu")
     __chrome_options.add_argument("--headless")
     __chrome_options.add_argument("--no-sandbox")
@@ -63,7 +57,7 @@ def make_chrome_options() -> Options:
     __chrome_options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
     temp_dir = tempfile.mkdtemp()
     __chrome_options.add_argument(f"--user-data-dir={temp_dir}")
-
+    __chrome_options.add_argument("--window-size=1920,1080")
     # __chrome_options.add_argument("--user-data-dir=" + str(TEMP_FOLDER / f'selenium-profile_{get_random_session_id()}'))
     # __chrome_options.add_argument("--user-data-dir=C:\\Users\\seker\\AppData\\Local\\Temp\\selenium-profile")
 

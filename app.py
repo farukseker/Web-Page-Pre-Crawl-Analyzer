@@ -8,7 +8,6 @@ from utilities.robots import (
     get_robots_txt_with_playwright,
     get_robots_txt_with_undetected_chromedriver
 )
-
 from utilities.content_analysis import (
     content_analysis_with_requests,
     content_analysis_with_selenium,
@@ -29,9 +28,6 @@ else:
     asyncio.set_event_loop(loop)
 
 
-llm = LocalLLM()
-llm_list = llm.list_llm()
-
 selected_tools: list = []
 selected_tasks: list = []
 all_colons: list[st.columns] = []
@@ -45,7 +41,6 @@ def clear_results() -> None:
 
 
 def cleanup():
-    config.remove_chat_session()
     config.remove_temp_dir()
 
 
@@ -64,6 +59,8 @@ if "content_load_test" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+if "selected_url" not in st.session_state:
+    st.session_state.selected_url = ''
 
 if "analyzed" not in st.session_state:
     st.session_state.analyzed = False
@@ -79,6 +76,17 @@ if "wt_chat" not in st.session_state:
 
 if "overload_test_url_list" not in st.session_state:
     st.session_state.overload_test_url_list = set()
+
+llm = LocalLLM()
+llm_list = llm.list_llm()
+
+if "chat_room_id" not in st.session_state:
+    st.session_state.chat_room_id = llm.create_chat_room()
+    llm.chat_room_id = st.session_state.chat_room_id
+    llm.load_chat_history()
+
+llm.chat_room_id = st.session_state.chat_room_id
+llm.load_chat_history()
 
 
 def show_robots_result():
@@ -146,6 +154,7 @@ def show_api_gateways_result():
     else:
         if st.session_state.content_is_load:
             st.error('API Gateways Not Found')
+    st.text(' ')
 
 
 def show_content_load_test_results():
@@ -199,16 +208,17 @@ def show_content_load_test_results():
 
 def show_api_gateway_list():
     global loop, selected_tools
-    if not st.session_state.content_load_test:
+    if not st.session_state.content_load_test and not len(selected_tools) > 0:
         return
 
     api_set_list: set = set()
     other_set_list: set = set()
 
     for selected_tool in selected_tools:
-        state = st.session_state.content_load_test.get(f'{selected_tool}_result')
-        api_set_list.update(state.api_requests)
-        other_set_list.update(state.other_requests)
+        if (state := st.session_state.content_load_test.get(f'{selected_tool}_result')) and any([state.api_requests, state.other_requests]):
+
+            api_set_list.update(state.api_requests)
+            other_set_list.update(state.other_requests)
 
     st.session_state.overload_test_url_list.update(api_set_list)
     st.session_state.overload_test_url_list.update(other_set_list)
@@ -225,38 +235,45 @@ def main():
     TASK_ROBOT_TXT: str = 'Get Robots.txt'
     TASK_API_GATEWAYS_TXT: str = 'Find API Gateways'
     TASK_CONTENT_LOAD_TXT: str = 'Full By Content Load Test With LLM'
-    st.set_page_config(page_title="Web Page Analyzer", layout="wide")
+    # st.set_page_config(page_title="Web Page Analyzer", layout="wide")
+    st.set_page_config(
+        page_title="Web Page Analyzer",
+        layout='wide',
+    )
     st.title("Web Page Analyzer")
 
-    col1, col2, = st.columns([1, 2])
+    st.text('Test sites')
+    if st.button('CreepJS'):
+        st.session_state.selected_url = 'https://abrahamjuliot.github.io/creepjs/'
 
-    selected_model = col1.selectbox("Select llm model for analiz and chat", llm_list)
-    llm.selected_model = selected_model
-    # llm.selected_model = 'deepseek-r1:1.5b'
-    # llm.selected_model = 'mistral:latest'
-    # llm.selected_model = 'deepseek-coder:6.7b'
+    if st.button('Bot.sannysoft.com'):
+        st.session_state.selected_url = 'https://bot.sannysoft.com/'
 
-    # url = col2.text_input("Analiz etmek istediğiniz URL'yi girin:")
-    url = col2.text_input("Analiz etmek istediğiniz URL'yi girin:", value='https://farukseker.com.tr/')
+    url = st.text_input("Analiz etmek istediğiniz URL'yi girin:", value=st.session_state.selected_url)
     url_obj = urlparse(url)
 
     tool_col, task_col = st.columns(2)
 
-    tools = (
-        'requests',
-        'selenium',
-        'playwright',
-        'undetected_chromedriver',
+    selected_tools = tool_col.multiselect(
+        label='Tools',
+        options=(
+            'requests',
+            'selenium',
+            'playwright',
+            'undetected_chromedriver',
+        ),
+        default='requests'
     )
-    selected_tools = tool_col.multiselect(label='Tools', options=tools, default='requests')
 
     if len(selected_tools) > 0:
-        tasks = (
-            TASK_ROBOT_TXT,
-            TASK_API_GATEWAYS_TXT,
-            TASK_CONTENT_LOAD_TXT,
+        selected_tasks = task_col.multiselect(
+            label='Tasks',
+            options=(
+                TASK_ROBOT_TXT,
+                TASK_API_GATEWAYS_TXT,
+                TASK_CONTENT_LOAD_TXT,
+            )
         )
-        selected_tasks = task_col.multiselect(label='Tools', options=tasks)
 
     if not st.session_state.start_analyze and not st.session_state.content_is_load:
         btn_place_holder = st.empty()
@@ -323,53 +340,57 @@ def main():
                 match selected_tool:
                     case 'requests':
                         with st.spinner('Waiting for Requests :'):
-                            content_analysis_with_requests_result = content_analysis_with_requests(target_url=url)
                             st.session_state.content_load_test.__setitem__(
                                 "requests_result",
-                                content_analysis_with_requests_result
+                                content_analysis_with_requests(target_url=url)
                             )
-                            time.sleep(1)
                     case 'selenium':
                         with st.spinner('Waiting for Selenium :'):
-                            content_analysis_with_selenium_result = content_analysis_with_selenium(target_url=url)
                             st.session_state.content_load_test.__setitem__(
                                 "selenium_result",
-                                content_analysis_with_selenium_result
+                                content_analysis_with_selenium(target_url=url)
                             )
-                            time.sleep(1)
                     case 'playwright':
                         with st.spinner('Waiting for Playwright :'):
-                            content_analysis_with_playwright_result = loop.run_until_complete(content_analysis_with_playwright(url))
                             st.session_state.content_load_test.__setitem__(
                                 "playwright_result",
-                                content_analysis_with_playwright_result
+                                loop.run_until_complete(content_analysis_with_playwright(url))
                             )
                             time.sleep(1)
                     case 'undetected_chromedriver':
                         with st.spinner('Waiting for Undetected Chromedriver :'):
-                            content_analysis_with_undetected_chromedriver_result = content_analysis_with_undetected_chromedriver(url)
                             st.session_state.content_load_test.__setitem__(
                                 "undetected_chromedriver_result",
-                                content_analysis_with_undetected_chromedriver_result
+                                content_analysis_with_undetected_chromedriver(url)
                             )
                     case _:
                         ...
+                time.sleep(1)
 
     if st.session_state.content_load_test:
-        show_robots_result()
-        show_content_load_test_results()
-        show_api_gateways_result()
-        show_api_gateway_list()
+        if TASK_ROBOT_TXT in selected_tasks:
+            show_robots_result()
+        if TASK_API_GATEWAYS_TXT in selected_tasks:
+            show_api_gateway_list()
+        if TASK_CONTENT_LOAD_TXT in selected_tasks:
+            show_content_load_test_results()
+            show_api_gateways_result()
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if not st.session_state.wt_chat and st.session_state.content_is_load:
+    if st.session_state.content_is_load and TASK_CONTENT_LOAD_TXT in selected_tasks:
+        col1, col2 = st.columns([1, 3])
+        selected_model = col1.selectbox("Select llm model for analiz and chat", llm_list)
+        llm.selected_model = selected_model
+
+    if not st.session_state.wt_chat and st.session_state.content_is_load and TASK_CONTENT_LOAD_TXT in selected_tasks:
         if st.button('What Think Chat'):
             st.session_state.wt_chat = True
 
     if st.session_state.wt_chat and not st.session_state.analyzed and st.session_state.content_is_load:
+        st.session_state.analyzed = True
         with st.spinner(f"{llm.selected_model}'is thinking"):
             try:
                 pre_message = 'analyze content taken by {module}'
@@ -380,7 +401,7 @@ def main():
                 then here is the content for you and MAKE SURE TO KEEP YOUR ANSWERS SHORT, MAKE SURE TO KEEP YOUR ANSWERS SHORT
                 {test_module}
                 {content}
-                """
+                """.replace('\n', '')
 
                 for selected_tool in selected_tools:
                     state = st.session_state.content_load_test.get(f'{selected_tool}_result')
@@ -390,7 +411,7 @@ def main():
                         llm.save_user_message(
                             pre_prompt.format(
                                 test_module=f'{state.processors} module content: ',
-                                content=state.raw_html
+                                content=state.content
                             )
                         )
 
@@ -404,7 +425,7 @@ def main():
                         response = llm.chat_with_llm(
                             pre_prompt.format(
                                 test_module=f'{state.processors} module content: ',
-                                content=state.raw_html
+                                content=state.content
                             ),
                             response_placeholder
                         )
@@ -424,16 +445,15 @@ def main():
                     st.markdown(message)
                     # llm.save_user_message(message)
                     response_placeholder = st.empty()
-                    r = llm.chat_with_llm(message, response_placeholder)
+                    r = llm.chat_with_llm(message.replace('\n', ''), response_placeholder)
                     st.session_state.messages.append({
-                        "role": "assistant",
+                        "role": "ai",
                         "content": r
                     })
 
             except Exception as e:
                 print('LLM ERROR: ')
                 print(e)
-        st.session_state.analyzed = True
 
     if st.session_state.wt_chat and st.session_state.analyzed:
         user_input = st.chat_input("Mesajınızı yazın...")
@@ -453,5 +473,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
