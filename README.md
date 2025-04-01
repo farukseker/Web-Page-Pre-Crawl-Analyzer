@@ -34,7 +34,8 @@ This project was developed to **gather intelligence and conduct preliminary anal
 
 ## **📊 Table Example**
 
-![data](.previews/table_content_with_llama_3.2_b8.png)
+|![data](.previews/table_content_with_llama_3.2_b8.png)|![inter face](.previews/localhost_8501.png)|
+|---|---|
 
 📎 **[Detailed Report – Web-Page-Analyzer.pdf](.previews/last_job.pdf)**
 
