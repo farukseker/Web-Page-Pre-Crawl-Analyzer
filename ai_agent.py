@@ -175,10 +175,10 @@ if __name__ == '__main__':
 
     # selected_llm_index: int = int(input('Select a llm model: '))
     # llm.selected_model = llm_list[selected_llm_index]
-    llm.selected_model = llm_list[1]
+    # llm.selected_model = llm_list[1]
 
-    r = llm.chat_with_llm("Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s")
-    print(r)
+    # r = llm.chat_with_llm("Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s")
+    # print(r)
     # r = llm.analyze_web_page_content(
     #     """
     #     <title>Cloudflare Web Application Firewall (WAF)</title>

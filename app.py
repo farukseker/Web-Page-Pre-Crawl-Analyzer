@@ -191,11 +191,13 @@ def show_api_gateway_list():
     st.session_state.overload_test_url_list.update(api_set_list)
     st.session_state.overload_test_url_list.update(other_set_list)
 
-    st.subheader('API')
-    st.table([{'host': urlparse(api).hostname, 'path': urlparse(api).path} for api in api_set_list if urlparse(api)])
+    if len(api_set_list) > 0:
+        st.subheader('API')
+        st.table([{'host': urlparse(api).hostname, 'path': urlparse(api).path} for api in api_set_list if urlparse(api)])
 
-    st.subheader('Other Url')
-    st.table([{'host': urlparse(other).hostname, 'path': urlparse(other).path[:30]} for other in other_set_list if urlparse(other)])
+    if len(other_set_list) > 0:
+        st.subheader('Other Url')
+        st.table([{'host': urlparse(other).hostname, 'path': urlparse(other).path[:30]} for other in other_set_list if urlparse(other)])
 
 
 def format_file_size(size):

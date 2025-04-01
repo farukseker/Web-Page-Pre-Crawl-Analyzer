@@ -1,15 +1,40 @@
-# Web Page Pre Crawl Analyzer
+# 🚀 Web Page Pre Crawl Analyzer
 
-This project was created to gather intelligence and do preliminary analysis before scraping any website. My first goal was to bring together various web tools under one roof and to be able to do more detailed analysis for each of them. I wanted to add an AI tool so that it could add a comment to the analysis of the content. I added promt to decide whether the current content corresponds to a waf or not. The last stage is to analyze the estimated data output and search for its hierarchical and tabular content. I want to write these in a single block so that I can reduce the time it takes to load the content to 3/1 by waiting for all of them at the same time and the last problem is that whenever the user adds a promt message, all the analyses are deleted because streamlit rebulds, you can easily add and make suggestions.
+## **🔍 Intelligent and Powerful Web Analysis Tool!**
+This project was developed to **gather intelligence and conduct preliminary analysis** before scraping any website. My goal was to **bring together various web tools under one roof** and enable **more detailed analysis** for each of them.
 
-### requirements and installation
-> In this system integrated with docker, it reads the same directory as the host computer for space saving. You can change this. By default, it reads the same directory as the host computer, be careful about this.
+🛠️ **Key Features:**
+- **💡 AI Integration** – Can add comments to content analysis.
+- **🛡️ WAF Detection** – Includes a prompt to determine whether the current content corresponds to a **Web Application Firewall (WAF).**
+- **📊 Data Structure Analysis** – **Examines estimated data output** and searches for hierarchical and tabular content.
+- **⚡ Simultaneous Loading** – **Reduces content loading time by 1/3 by processing all analyses in a single block!**
+- **⚠️ Streamlit Rebuild Issue** – Prevents all analyses from being deleted whenever a prompt message is added, **allowing easy modifications and suggestions.**
+
+---
+
+## **📦 Installation and Requirements**
+> **This system, integrated with Docker, reads the same directory as the host computer to save space.**
+> **You can change this!** By default, it reads the host computer’s directory, so **be cautious about this setting!**
 
 ```bash
-docker compose up -d
-``` 
-### web address [http://localhost:8501/](http://localhost:8501/)
+🚀 docker compose up -d
+```
 
-[![preview](.previews/thum.png)](https://youtu.be/m7AliZLFArU)
+---
 
-> + [Web-Page-Analyzer.pdf](.previews/Web-Page-Analyzer.pdf)
+## **🌐 Web Interface**
+🔗 **[http://localhost:8501/](http://localhost:8501/)**
+
+---
+
+## **🎬 Preview**
+[![preview](.previews/gitbanner.png)](https://youtu.be/5lJe7kTmu7I)
+
+---
+
+## **📊 Table Example**
+
+![data](.previews/table_content_with_llama_3.2_b8.png)
+
+📎 **[Detailed Report – Web-Page-Analyzer.pdf](.previews/last_job.pdf)**
+
